@@ -1,6 +1,4 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
 const app = express();
 
 const PORT = process.env.PORT || 3000;
@@ -23,24 +21,28 @@ function salvarConfiguracao(config) {
 }
 
 function registrarClick(linkId, req) {
-    const config = carregarConfiguracao();
-    const ip = req.ip || req.connection.remoteAddress;
-    const userAgent = req.headers['user-agent'] || 'desconhecido';
-    const dataHora = new Date().toISOString();
-    
-    if (!config.estatisticas[linkId]) {
-        config.estatisticas[linkId] = { total: 0, clicks: [] };
+    try {
+        const config = carregarConfiguracao();
+        const ip = req.ip || req.connection.remoteAddress || 'desconhecido';
+        const userAgent = req.headers['user-agent'] || 'desconhecido';
+        const dataHora = new Date().toISOString();
+        
+        if (!config.estatisticas[linkId]) {
+            config.estatisticas[linkId] = { total: 0, clicks: [] };
+        }
+        
+        config.estatisticas[linkId].total++;
+        config.estatisticas[linkId].clicks.push({ dataHora, ip, userAgent });
+        
+        if (config.estatisticas[linkId].clicks.length > 100) {
+            config.estatisticas[linkId].clicks = config.estatisticas[linkId].clicks.slice(-100);
+        }
+        
+        salvarConfiguracao(config);
+        console.log(`📊 [CLICK] ${linkId} | Total: ${config.estatisticas[linkId].total}`);
+    } catch (error) {
+        console.error('Erro ao registrar click:', error);
     }
-    
-    config.estatisticas[linkId].total++;
-    config.estatisticas[linkId].clicks.push({ dataHora, ip, userAgent });
-    
-    if (config.estatisticas[linkId].clicks.length > 100) {
-        config.estatisticas[linkId].clicks = config.estatisticas[linkId].clicks.slice(-100);
-    }
-    
-    salvarConfiguracao(config);
-    console.log(`📊 [CLICK] ${linkId} | Total: ${config.estatisticas[linkId].total}`);
 }
 
 // ============ ADMIN HTML ============
@@ -275,116 +277,142 @@ app.get('/admin', (req, res) => {
 });
 
 app.get('/api/links', (req, res) => {
-    const config = carregarConfiguracao();
-    const linksComStats = {};
-    
-    for (const [id, link] of Object.entries(config.links)) {
-        const stats = config.estatisticas[id] || { total: 0 };
-        linksComStats[id] = {
-            ...link,
-            totalCliques: stats.total
-        };
+    try {
+        const config = carregarConfiguracao();
+        const linksComStats = {};
+        
+        for (const [id, link] of Object.entries(config.links)) {
+            const stats = config.estatisticas[id] || { total: 0 };
+            linksComStats[id] = {
+                ...link,
+                totalCliques: stats.total
+            };
+        }
+        
+        res.json(linksComStats);
+    } catch (error) {
+        console.error('Erro em /api/links:', error);
+        res.status(500).json({ erro: 'Erro interno' });
     }
-    
-    res.json(linksComStats);
 });
 
 app.post('/api/links', (req, res) => {
-    const { id, destino, canal, campanha, utm_source } = req.body;
-    
-    if (!id || !destino) {
-        return res.status(400).json({ erro: 'ID e destino são obrigatórios' });
+    try {
+        const { id, destino, canal, campanha, utm_source } = req.body;
+        
+        if (!id || !destino) {
+            return res.status(400).json({ erro: 'ID e destino são obrigatórios' });
+        }
+        
+        const config = carregarConfiguracao();
+        config.links[id] = {
+            destino,
+            canal: canal || 'padrao',
+            campanha: campanha || id,
+            utm_source: utm_source || 'whatsapp'
+        };
+        
+        salvarConfiguracao(config);
+        res.json({ sucesso: true, link: config.links[id] });
+    } catch (error) {
+        console.error('Erro em /api/links POST:', error);
+        res.status(500).json({ erro: 'Erro interno' });
     }
-    
-    const config = carregarConfiguracao();
-    config.links[id] = {
-        destino,
-        canal: canal || 'padrao',
-        campanha: campanha || id,
-        utm_source: utm_source || 'whatsapp'
-    };
-    
-    salvarConfiguracao(config);
-    res.json({ sucesso: true, link: config.links[id] });
 });
 
 app.delete('/api/links/:id', (req, res) => {
-    const { id } = req.params;
-    const config = carregarConfiguracao();
-    
-    if (config.links[id]) {
-        delete config.links[id];
-        salvarConfiguracao(config);
-        res.json({ sucesso: true });
-    } else {
-        res.status(404).json({ erro: 'Link não encontrado' });
+    try {
+        const { id } = req.params;
+        const config = carregarConfiguracao();
+        
+        if (config.links[id]) {
+            delete config.links[id];
+            salvarConfiguracao(config);
+            res.json({ sucesso: true });
+        } else {
+            res.status(404).json({ erro: 'Link não encontrado' });
+        }
+    } catch (error) {
+        console.error('Erro em /api/links DELETE:', error);
+        res.status(500).json({ erro: 'Erro interno' });
     }
 });
 
 // ============ ROTAS DO FUNIL ============
 
-// 1. LINKS SIMPLES (ex: /teste)
-app.get('/:id', (req, res) => {
+// LINKS SIMPLES (ex: /teste)
+app.get('/:id', (req, res, next) => {
     const linkId = req.params.id;
     
-    // Ignora rotas que não são links (ex: admin, api, etc)
-    if (linkId === 'admin' || linkId === 'api' || linkId === 'f9q2pk' || linkId === 'cassino-destino') {
+    // Ignora rotas especiais
+    if (['admin', 'api', 'f9q2pk', 'cassino-destino'].includes(linkId)) {
         return next();
     }
     
-    registrarClick(linkId, req);
-    
-    const config = carregarConfiguracao();
-    const configuracaoLink = config.links[linkId];
-    
-    if (!configuracaoLink) {
-        return res.status(404).send(`
-            <h1>🔗 Link não encontrado</h1>
-            <p>O link que você tentou acessar não existe.</p>
-            <a href="/admin">Voltar ao painel</a>
-        `);
+    try {
+        registrarClick(linkId, req);
+        
+        const config = carregarConfiguracao();
+        const configuracaoLink = config.links[linkId];
+        
+        if (!configuracaoLink) {
+            return res.status(404).send(`
+                <h1>🔗 Link não encontrado</h1>
+                <p>O link que você tentou acessar não existe.</p>
+                <a href="/admin">Voltar ao painel</a>
+            `);
+        }
+        
+        const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
+        const { canal, campanha, utm_source } = configuracaoLink;
+        
+        res.redirect(302, `${baseUrl}/f9q2pk/?ch=${canal}&campanha=${campanha}&utm_source=${utm_source}`);
+    } catch (error) {
+        console.error('Erro no link simples:', error);
+        res.status(500).send('Erro interno no servidor');
     }
-    
-    const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
-    const { canal, campanha, utm_source } = configuracaoLink;
-    
-    res.redirect(302, `${baseUrl}/f9q2pk/?ch=${canal}&campanha=${campanha}&utm_source=${utm_source}`);
 });
 
-// 2. LINKS COM BARRA (ex: /whatsapp/promo)
+// LINKS COM BARRA (ex: /whatsapp/promo)
 app.get('/:origem/:campanha', (req, res) => {
-    const { origem, campanha } = req.params;
-    const linkId = `${origem}/${campanha}`;
-    
-    registrarClick(linkId, req);
-    
-    const config = carregarConfiguracao();
-    const configuracaoLink = config.links[linkId];
-    
-    if (!configuracaoLink) {
-        return res.status(404).send(`
-            <h1>🔗 Link não encontrado</h1>
-            <p>O link que você tentou acessar não existe.</p>
-            <a href="/admin">Voltar ao painel</a>
-        `);
+    try {
+        const { origem, campanha } = req.params;
+        const linkId = `${origem}/${campanha}`;
+        
+        registrarClick(linkId, req);
+        
+        const config = carregarConfiguracao();
+        const configuracaoLink = config.links[linkId];
+        
+        if (!configuracaoLink) {
+            return res.status(404).send(`
+                <h1>🔗 Link não encontrado</h1>
+                <p>O link que você tentou acessar não existe.</p>
+                <a href="/admin">Voltar ao painel</a>
+            `);
+        }
+        
+        const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
+        const { canal, campanha: campanhaNome, utm_source } = configuracaoLink;
+        
+        res.redirect(302, `${baseUrl}/f9q2pk/?ch=${canal}&campanha=${campanhaNome}&utm_source=${utm_source}`);
+    } catch (error) {
+        console.error('Erro no link com barra:', error);
+        res.status(500).send('Erro interno no servidor');
     }
-    
-    const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
-    const { canal, campanha: campanhaNome, utm_source } = configuracaoLink;
-    
-    res.redirect(302, `${baseUrl}/f9q2pk/?ch=${canal}&campanha=${campanhaNome}&utm_source=${utm_source}`);
 });
 
-// Hop 2
+// HOP 2 - Página isca
 app.get('/f9q2pk/', (req, res) => {
-    const ch = req.query.ch || 'padrao';
-    const campanha = req.query.campanha || 'geral';
-    const utm_source = req.query.utm_source || 'whatsapp';
-    
-    const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
-    const destinoFinal = `${baseUrl}/cassino-destino?ch=${ch}&campanha=${campanha}&utm_source=${utm_source}`;
-    
-    res.send(`
+    try {
+        const ch = req.query.ch || 'padrao';
+        const campanha = req.query.campanha || 'geral';
+        const utm_source = req.query.utm_source || 'whatsapp';
+        
+        const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
+        const destinoFinal = `${baseUrl}/cassino-destino?ch=${ch}&campanha=${campanha}&utm_source=${utm_source}`;
+        
+        res.send(`
 <!DOCTYPE html>
 <html>
 <head>
@@ -430,27 +458,36 @@ app.get('/f9q2pk/', (req, res) => {
     </script>
 </body>
 </html>
-    `);
+        `);
+    } catch (error) {
+        console.error('Erro no /f9q2pk:', error);
+        res.status(500).send('Erro interno no servidor');
+    }
 });
 
-// Hop 3
+// HOP 3 - Destino final
 app.get('/cassino-destino', (req, res) => {
-    const ch = req.query.ch || 'padrao';
-    const campanha = req.query.campanha || 'geral';
-    const utm_source = req.query.utm_source || 'whatsapp';
-    
-    const config = carregarConfiguracao();
-    let destinoReal = 'https://seudestino.com.br/';
-    
-    for (const [id, link] of Object.entries(config.links)) {
-        if (link.canal === ch && link.campanha === campanha) {
-            destinoReal = link.destino;
-            break;
+    try {
+        const ch = req.query.ch || 'padrao';
+        const campanha = req.query.campanha || 'geral';
+        const utm_source = req.query.utm_source || 'whatsapp';
+        
+        const config = carregarConfiguracao();
+        let destinoReal = 'https://seudestino.com.br/';
+        
+        for (const [id, link] of Object.entries(config.links)) {
+            if (link.canal === ch && link.campanha === campanha) {
+                destinoReal = link.destino;
+                break;
+            }
         }
+        
+        const urlFinal = `${destinoReal}?ch=${ch}&utm_source=${utm_source}&utm_campaign=${campanha}`;
+        res.redirect(302, urlFinal);
+    } catch (error) {
+        console.error('Erro no /cassino-destino:', error);
+        res.status(500).send('Erro interno no servidor');
     }
-    
-    const urlFinal = `${destinoReal}?ch=${ch}&utm_source=${utm_source}&utm_campaign=${campanha}`;
-    res.redirect(302, urlFinal);
 });
 
 app.get('/', (req, res) => {
@@ -458,6 +495,7 @@ app.get('/', (req, res) => {
         <h1>🎯 Funil de Redirects</h1>
         <p>Sistema funcionando!</p>
         <p><a href="/admin">📊 Acessar Painel Administrativo</a></p>
+        <p>Links cadastrados: ${Object.keys(memoriaConfig.links).length}</p>
     `);
 });
 
