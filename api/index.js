@@ -5,13 +5,9 @@ const app = express();
 
 const PORT = process.env.PORT || 3000;
 
-// ============ CONFIGURAÇÃO ============
-const LINKS_CONFIG_PATH = path.join(__dirname, '..', 'links.json');
-
 app.use(express.json());
 
-// ============ SISTEMA DE ARQUIVOS ============
-// ============ CONFIGURAÇÃO EM MEMÓRIA (PRO VISÃO) ============
+// ============ CONFIGURAÇÃO EM MEMÓRIA ============
 let memoriaConfig = {
     links: {},
     estatisticas: {}
@@ -47,7 +43,7 @@ function registrarClick(linkId, req) {
     console.log(`📊 [CLICK] ${linkId} | Total: ${config.estatisticas[linkId].total}`);
 }
 
-// ============ ADMIN HTML (EMBUTIDO NO CÓDIGO) ============
+// ============ ADMIN HTML ============
 const ADMIN_HTML = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -103,7 +99,7 @@ const ADMIN_HTML = `<!DOCTYPE html>
             <h2>➕ Criar Novo Link</h2>
             <form id="formLink">
                 <div class="form-group">
-                    <label>ID do Link (ex: whatsapp/promo)</label>
+                    <label>ID do Link (ex: whatsapp/promo ou só teste)</label>
                     <input type="text" id="linkId" placeholder="ex: whatsapp/promo" required>
                 </div>
                 <div class="form-group">
@@ -256,7 +252,6 @@ const ADMIN_HTML = `<!DOCTYPE html>
             navigator.clipboard.writeText(url).then(() => {
                 alert('📋 Link copiado!');
             }).catch(() => {
-                // Fallback
                 const input = document.createElement('input');
                 input.value = url;
                 document.body.appendChild(input);
@@ -267,7 +262,6 @@ const ADMIN_HTML = `<!DOCTYPE html>
             });
         }
 
-        // Inicializar
         carregarLinks();
         setInterval(carregarLinks, 30000);
     </script>
@@ -276,12 +270,10 @@ const ADMIN_HTML = `<!DOCTYPE html>
 
 // ============ ROTAS ============
 
-// ADMIN - Serve o HTML embutido
 app.get('/admin', (req, res) => {
     res.send(ADMIN_HTML);
 });
 
-// API - Listar links
 app.get('/api/links', (req, res) => {
     const config = carregarConfiguracao();
     const linksComStats = {};
@@ -297,7 +289,6 @@ app.get('/api/links', (req, res) => {
     res.json(linksComStats);
 });
 
-// API - Criar link
 app.post('/api/links', (req, res) => {
     const { id, destino, canal, campanha, utm_source } = req.body;
     
@@ -317,7 +308,6 @@ app.post('/api/links', (req, res) => {
     res.json({ sucesso: true, link: config.links[id] });
 });
 
-// API - Deletar link
 app.delete('/api/links/:id', (req, res) => {
     const { id } = req.params;
     const config = carregarConfiguracao();
@@ -333,7 +323,35 @@ app.delete('/api/links/:id', (req, res) => {
 
 // ============ ROTAS DO FUNIL ============
 
-// Rota dinâmica
+// 1. LINKS SIMPLES (ex: /teste)
+app.get('/:id', (req, res) => {
+    const linkId = req.params.id;
+    
+    // Ignora rotas que não são links (ex: admin, api, etc)
+    if (linkId === 'admin' || linkId === 'api' || linkId === 'f9q2pk' || linkId === 'cassino-destino') {
+        return next();
+    }
+    
+    registrarClick(linkId, req);
+    
+    const config = carregarConfiguracao();
+    const configuracaoLink = config.links[linkId];
+    
+    if (!configuracaoLink) {
+        return res.status(404).send(`
+            <h1>🔗 Link não encontrado</h1>
+            <p>O link que você tentou acessar não existe.</p>
+            <a href="/admin">Voltar ao painel</a>
+        `);
+    }
+    
+    const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
+    const { canal, campanha, utm_source } = configuracaoLink;
+    
+    res.redirect(302, `${baseUrl}/f9q2pk/?ch=${canal}&campanha=${campanha}&utm_source=${utm_source}`);
+});
+
+// 2. LINKS COM BARRA (ex: /whatsapp/promo)
 app.get('/:origem/:campanha', (req, res) => {
     const { origem, campanha } = req.params;
     const linkId = `${origem}/${campanha}`;
@@ -357,7 +375,7 @@ app.get('/:origem/:campanha', (req, res) => {
     res.redirect(302, `${baseUrl}/f9q2pk/?ch=${canal}&campanha=${campanhaNome}&utm_source=${utm_source}`);
 });
 
-// Hop 2 - Página isca
+// Hop 2
 app.get('/f9q2pk/', (req, res) => {
     const ch = req.query.ch || 'padrao';
     const campanha = req.query.campanha || 'geral';
@@ -415,7 +433,7 @@ app.get('/f9q2pk/', (req, res) => {
     `);
 });
 
-// Hop 3 - Destino final
+// Hop 3
 app.get('/cassino-destino', (req, res) => {
     const ch = req.query.ch || 'padrao';
     const campanha = req.query.campanha || 'geral';
@@ -435,7 +453,6 @@ app.get('/cassino-destino', (req, res) => {
     res.redirect(302, urlFinal);
 });
 
-// Rota raiz
 app.get('/', (req, res) => {
     res.send(`
         <h1>🎯 Funil de Redirects</h1>
