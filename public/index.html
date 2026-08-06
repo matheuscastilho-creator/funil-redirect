@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 Painel de Controle - Funil de Redirects</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a1a;
+            color: #fff;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            color: #f5c842;
+            font-size: 32px;
+        }
+        
+        .header .stats-total {
+            background: #e94560;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+        
+        .card {
+            background: #1a1a2e;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid #2a2a4e;
+        }
+        
+        .card h2 {
+            color: #f5c842;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #aaa;
+            font-size: 14px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            background: #0a0a1a;
+            border: 1px solid #2a2a4e;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #f5c842;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #f5c842;
+            color: #0a0a1a;
+        }
+        
+        .btn-primary:hover {
+            background: #ffd700;
+            transform: scale(1.02);
+        }
+        
+        .btn-danger {
+            background: #e94560;
+            color: #fff;
+        }
+        
+        .btn-danger:hover {
+            background: #c62840;
+        }
+        
+        .btn-success {
+            background: #00c853;
+            color: #fff;
+        }
+        
+        .table {
+            width: 100%;
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            text-align: left;
+            padding: 12px;
+            background: #0a0a1a;
+            color: #f5c842;
+            border-bottom: 2px solid #2a2a4e;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #2a2a4e;
+        }
+        
+        .link-url {
+            color: #64b5f6;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .link-url:hover {
+            text-decoration: underline;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .badge-success {
+            background: #00c853;
+            color: #fff;
+        }
+        
+        .badge-warning {
+            background: #ff9800;
+            color: #fff;
+        }
+        
+        .cliques-count {
+            font-size: 20px;
+            font-weight: bold;
+            color: #f5c842;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: #1a1a2e;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 28px;
+            cursor: pointer;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+        
+        .empty-state .emoji {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- HEADER -->
+        <div class="header">
+            <h1>📊 Painel de Controle</h1>
+            <div>
+                <span class="stats-total" id="totalLinks">0 links</span>
+                <span class="stats-total" style="margin-left: 10px; background: #f5c842; color: #0a0a1a;" id="totalCliques">0 cliques</span>
+            </div>
+        </div>
+
+        <!-- CRIAR NOVO LINK -->
+        <div class="card">
+            <h2>➕ Criar Novo Link</h2>
+            <form id="formLink">
+                <div class="form-group">
+                    <label>ID do Link (ex: whatsapp/promo)</label>
+                    <input type="text" id="linkId" placeholder="ex: whatsapp/promo" required>
+                </div>
+                <div class="form-group">
+                    <label>URL de Destino</label>
+                    <input type="url" id="linkDestino" placeholder="https://seudestino.com.br/" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Canal (ID do afiliado)</label>
+                        <input type="text" id="linkCanal" placeholder="22451">
+                    </div>
+                    <div class="form-group">
+                        <label>Nome da Campanha</label>
+                        <input type="text" id="linkCampanha" placeholder="promo_whatsapp">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>UTM Source (origem do tráfego)</label>
+                    <input type="text" id="linkUtm" placeholder="whatsapp">
+                </div>
+                <button type="submit" class="btn btn-primary">🚀 Criar Link</button>
+            </form>
+        </div>
+
+        <!-- LISTA DE LINKS -->
+        <div class="card">
+            <h2>🔗 Links Cadastrados</h2>
+            <div id="linksList">
+                <div class="empty-state">
+                    <div class="emoji">📭</div>
+                    <p>Nenhum link cadastrado ainda.<br>Crie seu primeiro link acima!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE DETALHES -->
+    <div class="modal" id="modalDetalhes">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📊 Detalhes do Link</h2>
+                <button class="modal-close" onclick="fecharModal()">&times;</button>
+            </div>
+            <div id="modalBody">
+                <p>Carregando...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============ VARIÁVEIS ============
+        const API_BASE = window.location.origin;
+        let links = {};
+
+        // ============ FUNÇÕES ============
+
+        // Carregar links
+        async function carregarLinks() {
+            try {
+                const response = await fetch('/api/links');
+                links = await response.json();
+                renderizarLinks();
+                atualizarContadores();
+            } catch (error) {
+                console.error('Erro ao carregar links:', error);
+            }
+        }
+
+        // Renderizar lista de links
+        function renderizarLinks() {
+            const container = document.getElementById('linksList');
+            
+            if (Object.keys(links).length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="emoji">📭</div>
+                        <p>Nenhum link cadastrado ainda.<br>Crie seu primeiro link acima!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <div class="table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Link</th>
+                                <th>Destino</th>
+                                <th>Cliques</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            for (const [id, link] of Object.entries(links)) {
+                const cliques = link.totalCliques || 0;
+                const urlCompleta = `${API_BASE}/${id}`;
+                
+                html += `
+                    <tr>
+                        <td>
+                            <strong>${id}</strong><br>
+                            <a href="${urlCompleta}" target="_blank" class="link-url">${urlCompleta}</a>
+                        </td>
+                        <td style="font-size: 14px; color: #aaa;">${link.destino}</td>
+                        <td>
+                            <span class="cliques-count">${cliques}</span>
+                            <button onclick="verDetalhes('${id}')" class="btn btn-success" style="padding: 4px 12px; font-size: 12px; margin-left: 10px;">
+                                📊
+                            </button>
+                        </td>
+                        <td>
+                            <button onclick="copiarLink('${urlCompleta}')" class="btn btn-primary" style="padding: 4px 12px; font-size: 12px; margin-right: 5px;">
+                                📋 Copiar
+                            </button>
+                            <button onclick="deletarLink('${id}')" class="btn btn-danger" style="padding: 4px 12px; font-size: 12px;">
+                                🗑️
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        // Atualizar contadores
+        function atualizarContadores() {
+            const totalLinks = Object.keys(links).length;
+            let totalCliques = 0;
+            
+            for (const link of Object.values(links)) {
+                totalCliques += link.totalCliques || 0;
+            }
+            
+            document.getElementById('totalLinks').textContent = `${totalLinks} links`;
+            document.getElementById('totalCliques').textContent = `${totalCliques} cliques`;
+        }
+
+        // Criar link
+        document.getElementById('formLink').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const id = document.getElementById('linkId').value.trim();
+            const destino = document.getElementById('linkDestino').value.trim();
+            const canal = document.getElementById('linkCanal').value.trim() || 'padrao';
+            const campanha = document.getElementById('linkCampanha').value.trim() || id;
+            const utm_source = document.getElementById('linkUtm').value.trim() || 'whatsapp';
+            
+            try {
+                const response = await fetch('/api/links', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, destino, canal, campanha, utm_source })
+                });
+                
+                if (response.ok) {
+                    alert('✅ Link criado com sucesso!');
+                    document.getElementById('formLink').reset();
+                    carregarLinks();
+                } else {
+                    alert('❌ Erro ao criar link');
+                }
+            } catch (error) {
+                alert('❌ Erro ao criar link');
+                console.error(error);
+            }
+        });
+
+        // Deletar link
+        async function deletarLink(id) {
+            if (!confirm(`Tem certeza que quer deletar o link "${id}"?`)) return;
+            
+            try {
+                const response = await fetch(`/api/links/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    alert('✅ Link deletado!');
+                    carregarLinks();
+                } else {
+                    alert('❌ Erro ao deletar link');
+                }
+            } catch (error) {
+                alert('❌ Erro ao deletar link');
+            }
+        }
+
+        // Copiar link
+        function copiarLink(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                alert('📋 Link copiado!');
+            });
+        }
+
+        // Ver detalhes do link
+        async function verDetalhes(id) {
+            try {
+                const response = await fetch(`/api/stats/${id}`);
+                const stats = await response.json();
+                
+                const modal = document.getElementById('modalDetalhes');
+                const body = document.getElementById('modalBody');
+                
+                let html = `
+                    <h3>🔗 ${id}</h3>
+                    <p><strong>Total de cliques:</strong> ${stats.total}</p>
+                    <hr>
+                    <h4>Últimos 10 cliques:</h4>
+                `;
+                
+                if (stats.clicks && stats.clicks.length > 0) {
+                    const ultimos = stats.clicks.slice(-10).reverse();
+                    html += `<ul style="list-style: none; padding: 0;">`;
+                    for (const click of ultimos) {
+                        const data = new Date(click.dataHora).toLocaleString();
+                        html += `
+                            <li style="padding: 8px; background: #0a0a1a; margin: 5px 0; border-radius: 5px; font-size: 14px;">
+                                🕐 ${data}<br>
+                                📱 IP: ${click.ip}<br>
+                                🔍 ${click.userAgent.substring(0, 80)}...
+                            </li>
+                        `;
+                    }
+                    html += `</ul>`;
+                } else {
+                    html += `<p style="color: #666;">Nenhum clique registrado ainda.</p>`;
+                }
+                
+                body.innerHTML = html;
+                modal.style.display = 'flex';
+            } catch (error) {
+                alert('Erro ao carregar detalhes');
+            }
+        }
+
+        // Fechar modal
+        function fecharModal() {
+            document.getElementById('modalDetalhes').style.display = 'none';
+        }
+
+        // Fechar modal ao clicar fora
+        document.getElementById('modalDetalhes').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                fecharModal();
+            }
+        });
+
+        // ============ INICIALIZAR ============
+        carregarLinks();
+        
+        // Recarregar a cada 30 segundos
+        setInterval(carregarLinks, 30000);
+    </script>
+</body>
+</html>
