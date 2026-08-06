@@ -1,0 +1,12 @@
+{
+  "name": "funil-redirect",
+  "version": "1.0.0",
+  "description": "Funil de redirects estilo cloaking",
+  "main": "api/index.js",
+  "scripts": {
+    "start": "node api/index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
