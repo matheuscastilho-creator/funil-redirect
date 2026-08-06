@@ -402,7 +402,7 @@ app.get('/:origem/:campanha', (req, res) => {
     }
 });
 
-// HOP 2 - Página isca
+// ============ HOP 2 - PÁGINA ISCA (WHITE LABEL) ============
 app.get('/f9q2pk/', (req, res) => {
     try {
         const ch = req.query.ch || 'padrao';
@@ -412,45 +412,97 @@ app.get('/f9q2pk/', (req, res) => {
         const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
         const destinoFinal = `${baseUrl}/cassino-destino?ch=${ch}&campanha=${campanha}&utm_source=${utm_source}`;
         
+        // ============ VERSÃO WHITE LABEL (SEM MENÇÃO A CASSINO) ============
         res.send(`
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta property="og:site_name" content="PG987.COM">
-    <meta property="og:title" content="ENTRA NO PG987 AGORA! 🎉 💰 GANHE ATÉ R$987 💸">
-    <meta property="og:description" content="O melhor cassino online! Bônus exclusivo de R$987">
-    <meta property="og:image" content="https://upload-us.z-9-a-b.com/s6/1784557/1.png">
+    <meta name="robots" content="noindex, nofollow">
+    
+    <!-- ====== OG TAGS NEUTRAS (O QUE O WHATSAPP VÊ) ====== -->
+    <meta property="og:site_name" content="Oferta Especial">
+    <meta property="og:title" content="🎁 Você foi selecionado! Acesse agora sua oferta exclusiva">
+    <meta property="og:description" content="Oferta especial para clientes VIP. Clique e confira agora mesmo!">
+    <meta property="og:image" content="https://placehold.co/1200x630/1a1a2e/f5c842?text=Oferta+Especial">
     <meta property="og:url" content="${baseUrl}/f9q2pk/?ch=${ch}">
+    <meta property="og:type" content="website">
+    
+    <!-- ====== FAVICON ====== -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎁</text></svg>">
     
     <style>
-        body { background: #0a0a1a; color: #fff; font-family: Arial; text-align: center; padding: 50px; margin: 0; }
-        .container { max-width: 600px; margin: 0 auto; background: #1a1a2e; padding: 40px; border-radius: 15px; }
-        h1 { color: #f5c842; font-size: 42px; margin: 0; }
-        .loader { 
-            border: 4px solid #f3f3f3; 
-            border-top: 4px solid #f5c842; 
-            border-radius: 50%; 
-            width: 40px; 
-            height: 40px; 
-            animation: spin 1s linear infinite; 
-            margin: 30px auto; 
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: #f5f5f5; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .info { background: #16213e; padding: 15px; border-radius: 8px; margin: 20px 0; font-size: 14px; color: #888; }
+        .card {
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 48px 40px;
+            max-width: 480px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+            border: 1px solid #f0f0f0;
+        }
+        .icon { font-size: 64px; margin-bottom: 16px; display: block; }
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+            line-height: 1.2;
+        }
+        .sub {
+            font-size: 16px;
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #e8e8e8;
+            border-top: 4px solid #1a1a1a;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 24px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .footer {
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 16px;
+            border-top: 1px solid #f0f0f0;
+            padding-top: 16px;
+        }
+        @media (max-width: 480px) {
+            .card { padding: 32px 20px; }
+            h1 { font-size: 24px; }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🎰 PG987.COM</h1>
-        <p>🔐 Processando sua entrada...</p>
+    <div class="card">
+        <span class="icon">🎁</span>
+        <h1>Acesse sua oferta</h1>
+        <p class="sub">Estamos preparando seu conteúdo exclusivo. Aguarde um momento...</p>
         <div class="loader"></div>
-        <div class="info">
-            📌 Canal: ${ch}<br>
-            ⏳ Redirecionando...
-        </div>
+        <div class="footer">© 2026 - Oferta Válida por tempo limitado</div>
     </div>
     
+    <!-- ====== REDIRECIONAMENTO PARA O DESTINO FINAL ====== -->
     <script>
         setTimeout(function() {
             window.location.href = '${destinoFinal}';
@@ -465,7 +517,7 @@ app.get('/f9q2pk/', (req, res) => {
     }
 });
 
-// HOP 3 - Destino final
+// ============ HOP 3 - DESTINO FINAL ============
 app.get('/cassino-destino', (req, res) => {
     try {
         const ch = req.query.ch || 'padrao';
