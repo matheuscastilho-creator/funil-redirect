@@ -11,27 +11,19 @@ const LINKS_CONFIG_PATH = path.join(__dirname, '..', 'links.json');
 app.use(express.json());
 
 // ============ SISTEMA DE ARQUIVOS ============
+// ============ CONFIGURAÇÃO EM MEMÓRIA (PRO VISÃO) ============
+let memoriaConfig = {
+    links: {},
+    estatisticas: {}
+};
+
 function carregarConfiguracao() {
-    try {
-        const data = fs.readFileSync(LINKS_CONFIG_PATH, 'utf8');
-        return JSON.parse(data);
-    } catch (error) {
-        const configPadrao = { links: {}, estatisticas: {} };
-        try {
-            fs.writeFileSync(LINKS_CONFIG_PATH, JSON.stringify(configPadrao, null, 2));
-        } catch (e) {
-            console.log('⚠️ Não foi possível criar arquivo, usando memória');
-        }
-        return configPadrao;
-    }
+    return memoriaConfig;
 }
 
 function salvarConfiguracao(config) {
-    try {
-        fs.writeFileSync(LINKS_CONFIG_PATH, JSON.stringify(config, null, 2));
-    } catch (error) {
-        console.log('⚠️ Não foi possível salvar arquivo, mantendo em memória');
-    }
+    memoriaConfig = config;
+    console.log('💾 Configuração salva em memória. Links:', Object.keys(config.links).length);
 }
 
 function registrarClick(linkId, req) {
